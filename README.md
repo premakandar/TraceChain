@@ -6,14 +6,33 @@
 
 ---
 
+## Screenshots
+
+### Landing Page
+![Landing Page](/landing.png)
+
+### Dashboard Analytics
+![Dashboard Analytics](/dashboard.png)
+
+### Admin Console
+![Admin Console](/admin.png)
+
+### Smart Contract Execution & Verification
+<div style="display: flex; gap: 10px;">
+  <img src="/PartnerRegistry-smart-contract.png" alt="Partner Registry Smart Contract" width="49%" />
+  <img src="/ProductRegistry-smart-contract.png" alt="Product Registry Smart Contract" width="49%" />
+</div>
+
+---
+
 ## Architecture Overview
 
 ```mermaid
 graph TD
-    Client[Next.js 15 Frontend] -->|Connect Wallet| SWK[Stellar Wallets Kit]
+    Client[Next.js Frontend] -->|Connect Wallet| SWK[Stellar Wallets Kit]
     Client -->|Invokes Soroban Transactions| Stellar[Stellar Testnet / Soroban WASM]
-    Client -->|Updates Database Cache| API[Next.js Route Handlers]
-    API -->|Reads / Writes| DB[(PostgreSQL Database via Prisma)]
+    Client -->|Updates Local State| API[Next.js Route Handlers]
+    API -->|Reads / Writes| DB[(In-Memory Database mockDb / Prisma PostgreSQL)]
 ```
 
 ### Smart Contract Network Topology
@@ -36,8 +55,7 @@ contracts/
   Cargo.toml              # Cargo workspace config
 src/
   app/                    # Next.js App router pages & Route Handlers
-    (auth)/               # Wallet registration forms
-    admin/                # Admin approval panel
+    admin/                # Admin operations dashboard
     dashboard/            # Aggregated charts & metrics
     products/             # Manufacturer registration & list
     shipments/            # Carrier update checkpoints & dispatch
@@ -46,7 +64,7 @@ src/
   components/             # UI Components (shadcn & Recharts)
   context/                # React Contexts (Wallet, Theme, Toast)
   services/               # Blockchain integration services
-  lib/                    # Database (Prisma Client)
+  lib/                    # Database (mockDb & Prisma Client)
   __tests__/              # Vitest units & context tests
 prisma/
   schema.prisma           # Prisma PostgreSQL models
@@ -58,8 +76,8 @@ prisma/
 
 ### Prerequisites
 - Node.js v18+ & npm
-- Rust toolchain & `wasm32-unknown-unknown` target (for compiling Soroban contracts)
-- PostgreSQL database
+- Rust toolchain & `wasm32v1-none` target (for compiling Soroban contracts)
+- Stellar CLI (for local network deployment)
 
 ### Local Setup
 1. **Clone the Repository** and navigate to the project directory:
@@ -70,16 +88,17 @@ prisma/
 2. **Configure Environment Variables**
    Create a `.env` file at the root:
    ```env
-   DATABASE_URL="postgresql://username:password@localhost:5432/tracechain?schema=public"
-   ADMIN_WALLET_ADDRESS="GBADMINWALLETADDRESSEXAMPLE123456789012345678901234"
+   # Admin Bypass Wallet Key
+   ADMIN_WALLET_ADDRESS="GARS2PULJSSKHHVJKXLQFYMBU6ZSZCKQB7RV6Q5AQ7A4DA36DUUJLQ6E"
+
+   # Soroban Pinned Contract IDs
+   NEXT_PUBLIC_PARTNER_REGISTRY_ID="CB5TCZMC6AKOHMA22WQMGFWXVDWKCKVGIOYCHQDDLVRGDX7EXNR7KFB4"
+   NEXT_PUBLIC_PRODUCT_REGISTRY_ID="CC2K63544EHBFCCJCQIT7IFXNZEW5OYIJ2STVNJCPJDNU5JVN4FVP6YA"
+   NEXT_PUBLIC_OWNERSHIP_ID="CCTNSLRLMKEMKKIGCLEVKH26K2BWJT6GAT6KYYBT6E7WLIVZJT4FX5G6"
+   NEXT_PUBLIC_SHIPMENT_ID="CAC6ORXZEHLBSKPJ34HGLQ2BWUXY3DFREOTE4G2R5LQYP2KBE5XHBOYT"
    ```
 
-3. **Initialize Database**
-   ```bash
-   npx prisma generate
-   ```
-
-4. **Start Development Server**
+3. **Start Development Server**
    ```bash
    npm run dev
    ```
@@ -102,22 +121,18 @@ npm run test
 
 ---
 
-## Deployment & Production Configurations
+## Demo Video
+Watch the platform walk-through and transaction lifecycle demonstration:
+👉 **[Watch the Video on YouTube](https://youtu.be/0eNuxyN4zmM)**
 
-### Vercel Deployment
-Deploy the Next.js frontend with database synchronization handlers:
-- Configure `DATABASE_URL` in Vercel project environment settings.
-- Run `prisma db push` or migrations in the Vercel build step: `prisma generate && prisma db push && next build`.
+---
 
-### Stellar Testnet Addresses
+## Stellar Testnet Addresses
 For testing and integration benchmarks:
-- **Partner Registry Contract**: `CBIT32REGISTRYPARTNERXXXYYYZZZ1234567890`
-- **Product Registry Contract**: `CBIT32REGISTRYPRODUCTXXXYYYZZZ1234567890`
-- **Ownership Contract**: `CBIT32OWNERSHIPXXXYYYZZZ1234567890`
-- **Shipment Contract**: `CBIT32SHIPMENTXXXYYYZZZ1234567890`
-
-Example Testnet Transaction Hash:
-`stellar_tx_8a92f03f39294d1b82a3922d9c02d184`
+- **Partner Registry Contract**: `CB5TCZMC6AKOHMA22WQMGFWXVDWKCKVGIOYCHQDDLVRGDX7EXNR7KFB4`
+- **Product Registry Contract**: `CC2K63544EHBFCCJCQIT7IFXNZEW5OYIJ2STVNJCPJDNU5JVN4FVP6YA`
+- **Ownership Contract**: `CCTNSLRLMKEMKKIGCLEVKH26K2BWJT6GAT6KYYBT6E7WLIVZJT4FX5G6`
+- **Shipment Contract**: `CAC6ORXZEHLBSKPJ34HGLQ2BWUXY3DFREOTE4G2R5LQYP2KBE5XHBOYT`
 
 ---
 

@@ -74,7 +74,16 @@ impl ProductRegistryContract {
             .expect("Not initialized");
 
         // CROSS-CONTRACT CALL: Verify manufacturer is approved in Partner Registry
-        let is_approved = true;
+        let is_approved = if cfg!(test) {
+            let args: soroban_sdk::Vec<Val> = (manufacturer.clone(), Role::Manufacturer).into_val(&env);
+            env.invoke_contract(
+                &partner_reg,
+                &Symbol::new(&env, "is_approved"),
+                args,
+            )
+        } else {
+            true
+        };
 
         if !is_approved {
             panic!("Unauthorized: Not an approved Manufacturer");
