@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { mockDb } from '@/lib/mockDb';
 import { z } from 'zod';
 
 const approveSchema = z.object({
@@ -22,21 +22,9 @@ export async function POST(request: NextRequest) {
 
     const status = approve ? 'APPROVED' : 'REJECTED';
 
-    const partner = await prisma.partner.update({
-      where: { walletAddress },
-      data: { status },
-    });
+    mockDb.updatePartnerStatus(walletAddress, status);
 
-    // Create a notification for the approved partner
-    await prisma.notification.create({
-      data: {
-        walletAddress,
-        title: approve ? 'Account Approved' : 'Account Rejected',
-        message: approve
-          ? `Your business registration request as ${partner.role} has been approved by the administrator.`
-          : `Your business registration request as ${partner.role} has been rejected.`,
-      },
-    });
+    const partner = mockDb.getPartners().find(p => p.walletAddress === walletAddress);
 
     return NextResponse.json({
       partner,

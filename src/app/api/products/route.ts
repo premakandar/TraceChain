@@ -11,6 +11,8 @@ const querySchema = z.object({
   search: z.string().optional(),
 });
 
+import { mockDb } from '@/lib/mockDb';
+
 // GET /api/products - Lists products with filtering and search
 export async function GET(request: NextRequest) {
   try {
@@ -28,38 +30,26 @@ export async function GET(request: NextRequest) {
 
     const { owner, manufacturer, status, search } = parsed.data;
 
-    const whereClause: any = {};
+    let products = mockDb.getProducts();
 
     if (owner) {
-      whereClause.currentOwnerAddress = owner;
+      products = products.filter(p => p.currentOwner.walletAddress === owner);
     }
     if (manufacturer) {
-      whereClause.manufacturerAddress = manufacturer;
+      products = products.filter(p => p.manufacturer.walletAddress === manufacturer);
     }
     if (status) {
-      whereClause.status = status;
+      products = products.filter(p => p.status === status);
     }
     if (search) {
-      whereClause.OR = [
-        { id: { contains: search, mode: 'insensitive' } },
-        { name: { contains: search, mode: 'insensitive' } },
-        { sku: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-      ];
+      const s = search.toLowerCase();
+      products = products.filter(p => 
+        p.id.toLowerCase().includes(s) || 
+        p.name.toLowerCase().includes(s) || 
+        p.sku.toLowerCase().includes(s) || 
+        p.description.toLowerCase().includes(s)
+      );
     }
-
-    const products = await prisma.product.findMany({
-      where: whereClause,
-      include: {
-        manufacturer: {
-          select: { name: true, walletAddress: true },
-        },
-        currentOwner: {
-          select: { name: true, walletAddress: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
 
     return NextResponse.json({ products });
   } catch (error: any) {

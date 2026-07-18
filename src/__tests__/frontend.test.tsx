@@ -4,12 +4,14 @@ vi.mock('@creit-tech/stellar-wallets-kit', () => {
   return {
     StellarWalletsKit: {
       init: vi.fn(),
-      authModal: vi.fn(),
+      authModal: vi.fn().mockResolvedValue({ address: 'GARS2PULJSSKHHVJKXLQFYMBU6ZSZCKQB7RV6Q5AQ7A4DA36DUUJLQ6E' }),
       disconnect: vi.fn(),
+      signTransaction: vi.fn().mockResolvedValue({ signedTxXdr: 'mocked_signed_xdr' }),
     },
     Networks: {
       TESTNET: 'Test SDF Network ; September 2015',
     },
+    defaultModules: vi.fn().mockReturnValue([]),
   };
 });
 import React from 'react';

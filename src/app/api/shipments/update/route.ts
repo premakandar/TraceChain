@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { mockDb } from '@/lib/mockDb';
 import { z } from 'zod';
 
 const updateSchema = z.object({
@@ -23,10 +23,8 @@ export async function POST(request: NextRequest) {
 
     const { shipmentId, status, location, description, txHash } = result.data;
 
-    // Fetch shipment details
-    const shipment = await prisma.shipment.findUnique({
-      where: { id: shipmentId },
-    });
+    // Fetch shipment from mock database
+    const shipment = mockDb.getShipments().find((s) => s.id === shipmentId);
 
     if (!shipment) {
       return NextResponse.json({ error: 'Shipment not found' }, { status: 404 });
@@ -36,93 +34,44 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Shipment is already delivered and closed' }, { status: 400 });
     }
 
-    const updatedShipment = await prisma.$transaction(async (tx: any) => {
-      // 1. Create a checkpoint update record
-      await tx.shipmentUpdate.create({
-        data: {
-          shipmentId,
-          status,
-          location,
-          description: description || null,
-          txHash,
-        },
-      });
+    // Update shipment status in mockDb
+    shipment.status = status;
 
-      // 2. Update shipment status
-      const updated = await tx.shipment.update({
-        where: { id: shipmentId },
-        data: { status },
-      });
-
-      // 3. Update Product status
-      const productStatus = status === 'DELIVERED' ? 'DELIVERED' : 'IN_TRANSIT';
-      
-      await tx.product.update({
-        where: { id: shipment.productId },
-        data: {
-          status: productStatus,
-          // If delivered, transfer owner in database too
-          ...(status === 'DELIVERED' ? { currentOwnerAddress: shipment.receiverAddress } : {}),
-        },
-      });
-
-      // 4. If delivered, record ownership transfer and update inventory
-      if (status === 'DELIVERED') {
-        // Record ownership history log
-        await tx.ownershipHistory.create({
-          data: {
-            productId: shipment.productId,
-            fromAddress: shipment.senderAddress,
-            toAddress: shipment.receiverAddress,
-            txHash,
-          },
-        });
-
-        // Remove from sender inventory
-        const senderInv = await tx.inventory.findUnique({
-          where: {
-            walletAddress_productId: { walletAddress: shipment.senderAddress, productId: shipment.productId },
-          },
-        });
-
-        if (senderInv) {
-          if (senderInv.quantity <= 1) {
-            await tx.inventory.delete({
-              where: {
-                walletAddress_productId: { walletAddress: shipment.senderAddress, productId: shipment.productId },
-              },
-            });
-          } else {
-            await tx.inventory.update({
-              where: {
-                walletAddress_productId: { walletAddress: shipment.senderAddress, productId: shipment.productId },
-              },
-              data: { quantity: senderInv.quantity - 1 },
-            });
-          }
-        }
-
-        // Add to receiver inventory
-        await tx.inventory.upsert({
-          where: {
-            walletAddress_productId: { walletAddress: shipment.receiverAddress, productId: shipment.productId },
-          },
-          create: {
-            walletAddress: shipment.receiverAddress,
-            productId: shipment.productId,
-            quantity: 1,
-          },
-          update: {
-            quantity: { increment: 1 },
-          },
-        });
-      }
-
-      return updated;
+    // Add checkpoint update to mockDb
+    mockDb.addShipmentUpdate({
+      id: 'update_' + Math.random().toString(36).substring(2, 9),
+      shipmentId,
+      status,
+      location,
+      description: description || null,
+      timestamp: new Date().toISOString(),
+      txHash,
     });
 
+    // Update Product status in mockDb
+    const product = mockDb.getProducts().find((p) => p.id === shipment.productId);
+    if (product) {
+      product.status = status;
+      if (status === 'DELIVERED') {
+        product.currentOwner = {
+          name: 'Demo Receiver Node',
+          walletAddress: shipment.receiverAddress,
+        };
+
+        // Add ownership history log for delivered product
+        mockDb.addOwnershipLog({
+          id: 'log_' + Math.random().toString(36).substring(2, 9),
+          productId: shipment.productId,
+          fromAddress: shipment.senderAddress,
+          toAddress: shipment.receiverAddress,
+          timestamp: new Date().toISOString(),
+          txHash,
+        });
+      }
+    }
+
     return NextResponse.json({
-      shipment: updatedShipment,
+      shipment,
       message: `Shipment status updated to ${status}.`,
     });
   } catch (error: any) {

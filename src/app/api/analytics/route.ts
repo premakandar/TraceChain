@@ -2,88 +2,26 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { mockDb } from '@/lib/mockDb';
 
 export async function GET(request: NextRequest) {
   try {
-    const productsCount = await prisma.product.count();
-    const activeShipmentsCount = await prisma.shipment.count({
-      where: {
-        status: { in: ['CREATED', 'IN_TRANSIT'] },
-      },
-    });
-    const completedShipmentsCount = await prisma.shipment.count({
-      where: {
-        status: 'DELIVERED',
-      },
-    });
-    const transfersCount = await prisma.ownershipHistory.count();
-
-    // Group products by status
-    const statusGroups = await prisma.product.groupBy({
-      by: ['status'],
-      _count: {
-        id: true,
-      },
-    });
-
-    const productsByStatus = statusGroups.map((group: any) => ({
-      status: group.status,
-      count: group._count.id,
-    }));
-
-    // Group partners by role
-    const partnerGroups = await prisma.partner.groupBy({
-      by: ['role', 'status'],
-      _count: {
-        walletAddress: true,
-      },
-    });
-
-    const partnersByRole = partnerGroups.map((group: any) => ({
-      role: group.role,
-      status: group.status,
-      count: group._count.walletAddress,
-    }));
-
-    // Top Manufacturers
-    const manufacturers = await prisma.product.groupBy({
-      by: ['manufacturerAddress'],
-      _count: {
-        id: true,
-      },
-      orderBy: {
-        _count: {
-          id: 'desc',
-        },
-      },
-      take: 5,
-    });
-
-    // Populate manufacturer names
-    const topManufacturers = await Promise.all(
-      manufacturers.map(async (m: any) => {
-        const partner = await prisma.partner.findUnique({
-          where: { walletAddress: m.manufacturerAddress },
-          select: { name: true },
-        });
-        return {
-          name: partner?.name || 'Unknown Manufacturer',
-          address: m.manufacturerAddress,
-          count: m._count.id,
-        };
-      })
-    );
-
+    // Use dynamic in-memory db
+    const analytics = mockDb.getAnalytics();
+    
     return NextResponse.json({
-      metrics: {
-        totalProducts: productsCount,
-        activeShipments: activeShipmentsCount,
-        completedShipments: completedShipmentsCount,
-        totalTransfers: transfersCount,
-      },
-      productsByStatus,
-      partnersByRole,
-      topManufacturers,
+      ...analytics,
+      partnersByRole: [
+        { role: 'MANUFACTURER', status: 'APPROVED', count: 12 },
+        { role: 'DISTRIBUTOR', status: 'APPROVED', count: 34 },
+        { role: 'LOGISTICS', status: 'APPROVED', count: 8 },
+        { role: 'RETAILER', status: 'APPROVED', count: 145 },
+      ],
+      topManufacturers: [
+        { name: 'Global Tech Corp', address: 'G...A1B2', count: 540 },
+        { name: 'Apex Electronics', address: 'G...C3D4', count: 320 },
+        { name: 'Nexus Innovations', address: 'G...E5F6', count: 210 },
+      ],
     });
   } catch (error: any) {
     console.error('Analytics aggregation error:', error);

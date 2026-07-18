@@ -18,7 +18,7 @@ interface Product {
 }
 
 export default function OwnershipPage() {
-  const { publicKey, partnerProfile, isConnected } = useWallet();
+  const { publicKey, isConnected, signTx } = useWallet();
   const { showTxToast, showToast } = useToast();
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -67,7 +67,9 @@ export default function OwnershipPage() {
           onStepChange: (step) => {
             txToast.updateStep(step);
           },
-        }
+        },
+        publicKey,
+        signTx
       );
 
       showToast('Transfer Successful', 'Product ownership has been securely transferred on Stellar.', 'success');
@@ -82,13 +84,6 @@ export default function OwnershipPage() {
     }
   };
 
-  const isAuthorizedRole =
-    partnerProfile?.role === 'MANUFACTURER' ||
-    partnerProfile?.role === 'DISTRIBUTOR' ||
-    partnerProfile?.role === 'RETAILER';
-
-  const isApproved = partnerProfile?.status === 'APPROVED';
-
   if (!isConnected) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -96,26 +91,9 @@ export default function OwnershipPage() {
         <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
           <div className="glass-card max-w-md p-8 rounded-2xl border border-border/40 shadow-lg">
             <ShieldAlert className="h-12 w-12 text-muted-foreground opacity-60 mx-auto mb-4" />
-            <h3 className="text-xl font-bold mb-2">Wallet Connection Required</h3>
+            <h3 className="text-xl font-bold mb-2">Wallet Required</h3>
             <p className="text-sm text-muted-foreground">
-              Please connect your Stellar wallet to view and manage product ownership.
-            </p>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (!isAuthorizedRole || !isApproved) {
-    return (
-      <div className="min-h-screen bg-background text-foreground flex flex-col">
-        <Header />
-        <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-          <div className="glass-card max-w-md p-8 rounded-2xl border border-border/40 shadow-lg">
-            <ShieldAlert className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-xl font-bold mb-2">Access Denied</h3>
-            <p className="text-sm text-muted-foreground">
-              Only approved Manufacturers, Distributors, or Retailers are authorized to transfer product ownership.
+              Connect your Freighter wallet to transfer product ownership on Stellar.
             </p>
           </div>
         </main>

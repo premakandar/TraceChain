@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useWallet } from '@/context/WalletContext';
 import { useToast } from '@/context/ToastContext';
+import { StellarService } from '@/services/stellar';
 import { Header } from '@/components/shared/Header';
 import { Shield, CheckCircle, Clock } from 'lucide-react';
 
@@ -20,8 +21,8 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 export default function RegisterPage() {
-  const { publicKey, isConnected, partnerProfile, refreshProfile } = useWallet();
-  const { showToast } = useToast();
+  const { publicKey, isConnected, partnerProfile, refreshProfile, signTx } = useWallet();
+  const { showToast, showTxToast } = useToast();
   const router = useRouter();
 
   const {
@@ -60,29 +61,32 @@ export default function RegisterPage() {
     if (!publicKey) return;
 
     try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          walletAddress: publicKey,
-          ...data,
-        }),
-      });
+      // Step 1: Call the on-chain Partner Registry contract to register this wallet.
+      // This requires the user to sign the transaction with Freighter.
+      // The wallet will remain PENDING until the admin approves it on-chain.
+      const txToast = showTxToast(`Registering ${data.name} on Stellar`);
 
-      const resData = await response.json();
+      await StellarService.registerPartner(
+        data.name,
+        data.role,
+        { onStepChange: (step) => txToast.updateStep(step) },
+        publicKey,
+        signTx
+      );
 
-      if (!response.ok) {
-        throw new Error(resData.error || 'Failed to register');
-      }
-
-      showToast('Registration Successful', resData.message || 'Verification pending.', 'success');
+      showToast(
+        'Registration Submitted On-Chain',
+        'Your partner request is pending admin approval. You will be notified once approved.',
+        'success'
+      );
       await refreshProfile(publicKey);
-      
+
       if (data.role === 'CONSUMER') {
         router.push('/dashboard');
       }
     } catch (err: any) {
-      showToast('Registration Failed', err.message || 'Something went wrong', 'error');
+      console.error('Registration error:', err);
+      showToast('Registration Failed', err.message || 'Something went wrong. Please try again.', 'error');
     }
   };
 

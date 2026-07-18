@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { mockDb } from '@/lib/mockDb';
 import { z } from 'zod';
 
 const querySchema = z.object({
@@ -29,31 +29,27 @@ export async function GET(request: NextRequest) {
 
     const { carrier, sender, receiver, status, productId } = parsed.data;
 
-    const whereClause: any = {};
+    let shipments = mockDb.getShipments();
 
-    if (carrier) whereClause.carrierAddress = carrier;
-    if (sender) whereClause.senderAddress = sender;
-    if (receiver) whereClause.receiverAddress = receiver;
-    if (status) whereClause.status = status;
-    if (productId) whereClause.productId = productId;
+    if (carrier) shipments = shipments.filter(s => s.carrierAddress === carrier);
+    if (sender) shipments = shipments.filter(s => s.senderAddress === sender);
+    if (receiver) shipments = shipments.filter(s => s.receiverAddress === receiver);
+    if (status) shipments = shipments.filter(s => s.status === status);
+    if (productId) shipments = shipments.filter(s => s.productId === productId);
 
-    const shipments = await prisma.shipment.findMany({
-      where: whereClause,
-      include: {
-        product: {
-          select: { name: true, sku: true },
-        },
-        carrier: {
-          select: { name: true },
-        },
-        updates: {
-          orderBy: { timestamp: 'desc' },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
+    // Map relationships
+    const enrichedShipments = shipments.map((s) => {
+      const product = mockDb.getProducts().find(p => p.id === s.productId);
+      const updates = mockDb.getShipmentUpdates(s.id);
+      return {
+        ...s,
+        product: product ? { name: product.name, sku: product.sku } : { name: 'Unknown Product', sku: '—' },
+        carrier: { name: 'Demo Carrier' },
+        updates,
+      };
     });
 
-    return NextResponse.json({ shipments });
+    return NextResponse.json({ shipments: enrichedShipments });
   } catch (error: any) {
     console.error('Shipments list fetch error:', error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });

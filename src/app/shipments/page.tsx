@@ -29,7 +29,7 @@ interface Shipment {
 }
 
 export default function ShipmentsPage() {
-  const { publicKey, partnerProfile, isConnected } = useWallet();
+  const { publicKey, partnerProfile, isConnected, signTx } = useWallet();
   const { showTxToast, showToast } = useToast();
   const queryClient = useQueryClient();
 
@@ -94,7 +94,9 @@ export default function ShipmentsPage() {
           onStepChange: (step) => {
             txToast.updateStep(step);
           },
-        }
+        },
+        publicKey,
+        signTx
       );
 
       showToast('Success', 'Shipment created on Stellar successfully.', 'success');
@@ -118,8 +120,8 @@ export default function ShipmentsPage() {
 
   const handleUpdateStatus = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedShipment || !updateLocation) {
-      showToast('Validation Error', 'Please specify a current location.', 'warning');
+    if (!selectedShipment || !updateLocation || !publicKey) {
+      showToast('Validation Error', 'Please specify a current location and ensure wallet is connected.', 'warning');
       return;
     }
 
@@ -136,7 +138,9 @@ export default function ShipmentsPage() {
           onStepChange: (step) => {
             txToast.updateStep(step);
           },
-        }
+        },
+        publicKey,
+        signTx
       );
 
       showToast('Success', 'Shipment status updated on Stellar successfully.', 'success');

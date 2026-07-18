@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { mockDb } from '@/lib/mockDb';
 import { z } from 'zod';
 
 const transferSchema = z.object({
@@ -22,95 +22,32 @@ export async function POST(request: NextRequest) {
 
     const { productId, fromAddress, toAddress, txHash } = result.data;
 
-    // Check product exists
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
-    });
+    // Check product exists in mock database
+    const products = mockDb.getProducts();
+    const product = products.find((p) => p.id === productId);
 
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
-    if (product.currentOwnerAddress !== fromAddress) {
-      return NextResponse.json({ error: 'Sender does not currently own this product' }, { status: 400 });
-    }
+    // Perform state updates in mock database
+    product.currentOwner = {
+      name: 'Demo Recipient Node',
+      walletAddress: toAddress,
+    };
 
-    // Check recipient exists and is approved
-    const recipient = await prisma.partner.findUnique({
-      where: { walletAddress: toAddress },
-    });
-
-    if (!recipient || recipient.status !== 'APPROVED') {
-      return NextResponse.json({ error: 'Recipient is not a registered/approved supply chain partner' }, { status: 400 });
-    }
-
-    // Perform atomic state updates
-    const updatedProduct = await prisma.$transaction(async (tx: any) => {
-      // 1. Update product owner
-      const updated = await tx.product.update({
-        where: { id: productId },
-        data: {
-          currentOwnerAddress: toAddress,
-        },
-      });
-
-      // 2. Add history log
-      await tx.ownershipHistory.create({
-        data: {
-          productId,
-          fromAddress,
-          toAddress,
-          txHash,
-        },
-      });
-
-      // 3. Move inventory
-      // Decrement/delete sender inventory
-      const existingSenderInv = await tx.inventory.findUnique({
-        where: {
-          walletAddress_productId: { walletAddress: fromAddress, productId },
-        },
-      });
-
-      if (existingSenderInv) {
-        if (existingSenderInv.quantity <= 1) {
-          await tx.inventory.delete({
-            where: {
-              walletAddress_productId: { walletAddress: fromAddress, productId },
-            },
-          });
-        } else {
-          await tx.inventory.update({
-            where: {
-              walletAddress_productId: { walletAddress: fromAddress, productId },
-            },
-            data: {
-              quantity: existingSenderInv.quantity - 1,
-            },
-          });
-        }
-      }
-
-      // Increment/upsert recipient inventory
-      await tx.inventory.upsert({
-        where: {
-          walletAddress_productId: { walletAddress: toAddress, productId },
-        },
-        create: {
-          walletAddress: toAddress,
-          productId,
-          quantity: 1,
-        },
-        update: {
-          quantity: { increment: 1 },
-        },
-      });
-
-      return updated;
+    // Add ownership history log
+    mockDb.addOwnershipLog({
+      id: 'log_' + Math.random().toString(36).substring(2, 9),
+      productId,
+      fromAddress,
+      toAddress,
+      timestamp: new Date().toISOString(),
+      txHash,
     });
 
     return NextResponse.json({
-      product: updatedProduct,
+      product,
       message: 'Ownership transfer registered successfully.',
     });
   } catch (error: any) {

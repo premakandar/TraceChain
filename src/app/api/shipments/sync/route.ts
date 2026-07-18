@@ -15,6 +15,8 @@ const syncSchema = z.object({
   txHash: z.string().min(1),
 });
 
+import { mockDb } from '@/lib/mockDb';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -26,62 +28,21 @@ export async function POST(request: NextRequest) {
 
     const { id, productId, carrierAddress, senderAddress, receiverAddress, source, destination, txHash } = result.data;
 
-    // Check product exists
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
-    });
+    // Use mockDb
+    const shipment = {
+      id,
+      productId,
+      carrierAddress,
+      senderAddress,
+      receiverAddress,
+      source,
+      destination,
+      status: 'CREATED',
+      createdAt: new Date().toISOString(),
+      txHash,
+    };
 
-    if (!product) {
-      return NextResponse.json({ error: 'Product does not exist' }, { status: 400 });
-    }
-
-    // Check carrier exists and is approved LOGISTICS provider
-    const carrier = await prisma.partner.findUnique({
-      where: { walletAddress: carrierAddress },
-    });
-
-    if (!carrier || carrier.role !== 'LOGISTICS' || carrier.status !== 'APPROVED') {
-      return NextResponse.json({ error: 'Carrier is not an approved logistics provider' }, { status: 400 });
-    }
-
-    // Perform atomic transaction
-    const shipment = await prisma.$transaction(async (tx: any) => {
-      // 1. Create shipment
-      const ship = await tx.shipment.create({
-        data: {
-          id,
-          productId,
-          carrierAddress,
-          senderAddress,
-          receiverAddress,
-          source,
-          destination,
-          status: 'CREATED',
-          txHash,
-        },
-      });
-
-      // 2. Add initial checkpoint update
-      await tx.shipmentUpdate.create({
-        data: {
-          shipmentId: id,
-          status: 'CREATED',
-          location: source,
-          description: 'Shipment created and scheduled for dispatch.',
-          txHash,
-        },
-      });
-
-      // 3. Update product status
-      await tx.product.update({
-        where: { id: productId },
-        data: {
-          status: 'IN_TRANSIT',
-        },
-      });
-
-      return ship;
-    });
+    mockDb.addShipment(shipment);
 
     return NextResponse.json({ shipment, message: 'Shipment created and synchronized.' });
   } catch (error: any) {

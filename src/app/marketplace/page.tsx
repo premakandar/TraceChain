@@ -74,7 +74,7 @@ export default function ProductsPage() {
           </div>
           {isManufacturer && (
             <Link
-              href="/products/new"
+              href="/marketplace/new"
               className="flex items-center gap-2 bg-primary hover:bg-primary/95 text-primary-foreground font-semibold px-4 py-2.5 rounded-lg text-sm transition-all shadow-md hover:scale-[1.01]"
             >
               <Plus className="h-4 w-4" />
@@ -131,7 +131,7 @@ export default function ProductsPage() {
             </div>
             {isManufacturer && (
               <Link
-                href="/products/new"
+                href="/marketplace/new"
                 className="bg-secondary hover:bg-secondary/80 text-foreground border border-border/40 font-semibold px-4 py-2 rounded-lg text-sm transition-all"
               >
                 Create Product Batch

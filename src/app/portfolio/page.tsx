@@ -22,7 +22,7 @@ interface InventoryItem {
 }
 
 export default function InventoryPage() {
-  const { publicKey, partnerProfile, isConnected } = useWallet();
+  const { publicKey, isConnected } = useWallet();
 
   // Fetch inventory
   const { data, isLoading, error } = useQuery<{ inventory: InventoryItem[] }>({
@@ -32,7 +32,7 @@ export default function InventoryPage() {
       if (!res.ok) throw new Error('Failed to load inventory');
       return res.json();
     },
-    enabled: isConnected && partnerProfile?.status === 'APPROVED',
+    enabled: isConnected && !!publicKey,
   });
 
   const inventory = data?.inventory || [];
@@ -44,26 +44,9 @@ export default function InventoryPage() {
         <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
           <div className="glass-card max-w-md p-8 rounded-2xl border border-border/40 shadow-lg">
             <ShieldAlert className="h-12 w-12 text-muted-foreground opacity-60 mx-auto mb-4" />
-            <h3 className="text-xl font-bold mb-2">Authentication Required</h3>
+            <h3 className="text-xl font-bold mb-2">Wallet Required</h3>
             <p className="text-sm text-muted-foreground">
-              Please connect your Stellar wallet to view your inventory.
-            </p>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (partnerProfile?.status !== 'APPROVED') {
-    return (
-      <div className="min-h-screen bg-background text-foreground flex flex-col">
-        <Header />
-        <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-          <div className="glass-card max-w-md p-8 rounded-2xl border border-border/40 shadow-lg">
-            <ShieldAlert className="h-12 w-12 text-yellow-500 mx-auto mb-4 animate-pulse" />
-            <h3 className="text-xl font-bold mb-2">Approval Pending</h3>
-            <p className="text-sm text-muted-foreground">
-              Please wait for admin approval before accessing your inventory dashboard.
+              Connect your Freighter wallet to view your inventory.
             </p>
           </div>
         </main>

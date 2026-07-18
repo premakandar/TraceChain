@@ -22,9 +22,14 @@ interface WalletContextType {
   isConnecting: boolean;
   error: string | null;
   partnerProfile: PartnerProfile | null;
+  activeRole: Role;
+  balance: string;
+  switchRole: (role: Role) => void;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   refreshProfile: (address: string) => Promise<void>;
+  refreshBalance: () => Promise<void>;
+  signTx: (xdr: string) => Promise<{ signedXDR: string }>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -35,9 +40,13 @@ let walletKit: any = null;
 const getWalletKit = () => {
   if (typeof window === 'undefined') return null;
   if (!walletKit) {
-    (StellarWalletsKit as any).init({
+    StellarWalletsKit.init({
       network: Networks.TESTNET,
       modules: defaultModules(),
+      authModal: {
+        showInstallLabel: true,
+        hideUnsupportedWallets: false,
+      }
     });
     walletKit = StellarWalletsKit;
   }
@@ -49,7 +58,45 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [partnerProfile, setPartnerProfile] = useState<PartnerProfile | null>(null);
+  const [activeRole, setActiveRole] = useState<Role>('CONSUMER');
+  const [balance, setBalance] = useState<string>('0.00');
+
+  const refreshBalance = async () => {
+    if (!publicKey) {
+      setBalance('0.00');
+      return;
+    }
+    try {
+      const res = await fetch(`https://horizon-testnet.stellar.org/accounts/${publicKey}`);
+      if (!res.ok) throw new Error('Account not found');
+      const data = await res.json();
+      const nativeBalance = data.balances.find((b: any) => b.asset_type === 'native');
+      if (nativeBalance) {
+        const formatted = parseFloat(nativeBalance.balance).toLocaleString('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+        setBalance(formatted);
+      }
+    } catch (e) {
+      console.warn('Horizon fetch failed, using fallback balance:', e);
+      setBalance('0.00');
+    }
+  };
+
+  // Fetch balance on key change
+  useEffect(() => {
+    refreshBalance();
+  }, [publicKey]);
+
+  // partnerProfile is always active for any connected wallet — roles are for UI simulation only
+  const partnerProfile: PartnerProfile | null = isConnected && publicKey ? {
+    walletAddress: publicKey,
+    name: `${activeRole.charAt(0) + activeRole.slice(1).toLowerCase()} Node`,
+    role: activeRole,
+    status: 'APPROVED',
+    email: null,
+  } : null;
 
   // Auto-connect if wallet details are saved in localStorage
   useEffect(() => {
@@ -57,27 +104,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     if (savedAddress) {
       setPublicKey(savedAddress);
       setIsConnected(true);
-      refreshProfile(savedAddress);
     }
   }, []);
 
-  const refreshProfile = async (address: string) => {
-    try {
-      const response = await fetch(`/api/auth/session?address=${address}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.partner) {
-          setPartnerProfile(data.partner);
-        } else {
-          setPartnerProfile(null);
-        }
-      } else {
-        setPartnerProfile(null);
-      }
-    } catch (err) {
-      console.error('Failed to fetch partner session:', err);
-      setPartnerProfile(null);
-    }
+  const refreshProfile = async (_address: string) => {
+    // No-op: profile is derived from wallet connection + selected role
+  };
+
+  const switchRole = (role: Role) => {
+    setActiveRole(role);
   };
 
   const connect = async () => {
@@ -88,12 +123,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       if (!kit) throw new Error('Wallet Kit not available');
 
       // Use authModal which shows the UI modal to select wallet and returns address
-      const { address } = await (StellarWalletsKit as any).authModal({
-        authModal: {
-          showInstallLabel: true,
-          hideUnsupportedWallets: false,
-        }
-      });
+      const { address } = await StellarWalletsKit.authModal();
 
       if (!address) {
         throw new Error('No address returned from wallet connection');
@@ -113,14 +143,26 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const disconnect = async () => {
     try {
-      await (StellarWalletsKit as any).disconnect();
+      await StellarWalletsKit.disconnect();
     } catch (err) {
       console.error('Disconnect error:', err);
     }
     setPublicKey(null);
     setIsConnected(false);
-    setPartnerProfile(null);
     localStorage.removeItem('wallet_address');
+  };
+
+  const signTx = async (xdr: string) => {
+    const kit = getWalletKit();
+    if (!kit) throw new Error('Wallet Kit not available');
+    
+    // signTransaction requests signature from the wallet
+    // Correct call: first parameter is xdr (string), second parameter is opts object.
+    const response = await StellarWalletsKit.signTransaction(xdr, {
+      networkPassphrase: Networks.TESTNET,
+    });
+    
+    return { signedXDR: response.signedTxXdr };
   };
 
   return (
@@ -131,9 +173,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         isConnecting,
         error,
         partnerProfile,
+        activeRole,
+        balance,
+        switchRole,
         connect,
         disconnect,
         refreshProfile,
+        refreshBalance,
+        signTx,
       }}
     >
       {children}

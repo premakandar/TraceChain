@@ -13,6 +13,8 @@ const syncSchema = z.object({
   txHash: z.string().min(1),
 });
 
+import { mockDb } from '@/lib/mockDb';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -24,52 +26,20 @@ export async function POST(request: NextRequest) {
 
     const { id, name, sku, description, manufacturerAddress, txHash } = result.data;
 
-    // Check if manufacturer exists and is approved
-    const manufacturer = await prisma.partner.findUnique({
-      where: { walletAddress: manufacturerAddress },
-    });
+    // Use mockDb instead of Prisma
+    const product = {
+      id,
+      name,
+      sku,
+      description: description || '',
+      status: 'REGISTERED',
+      price: '0.00',
+      createdAt: new Date().toISOString(),
+      manufacturer: { name: 'Demo Manufacturer', walletAddress: manufacturerAddress },
+      currentOwner: { name: 'Demo Manufacturer', walletAddress: manufacturerAddress },
+    };
 
-    if (!manufacturer || manufacturer.status !== 'APPROVED') {
-      return NextResponse.json({ error: 'Manufacturer not registered or not approved' }, { status: 400 });
-    }
-
-    // Use transaction to atomically create product, ownership history, and inventory
-    const product = await prisma.$transaction(async (tx: any) => {
-      // Create product
-      const prod = await tx.product.create({
-        data: {
-          id,
-          name,
-          sku,
-          description: description || null,
-          manufacturerAddress,
-          currentOwnerAddress: manufacturerAddress,
-          status: 'REGISTERED',
-          txHash,
-        },
-      });
-
-      // Add to ownership history
-      await tx.ownershipHistory.create({
-        data: {
-          productId: id,
-          fromAddress: manufacturerAddress, // Self-created
-          toAddress: manufacturerAddress,
-          txHash,
-        },
-      });
-
-      // Add to inventory
-      await tx.inventory.create({
-        data: {
-          walletAddress: manufacturerAddress,
-          productId: id,
-          quantity: 1,
-        },
-      });
-
-      return prod;
-    });
+    mockDb.addProduct(product);
 
     return NextResponse.json({ product, message: 'Product synchronized successfully.' });
   } catch (error: any) {

@@ -22,29 +22,14 @@ export async function POST(request: NextRequest) {
 
     const { walletAddress, name, role, email } = result.data;
 
-    // Check if partner already exists
-    const existing = await prisma.partner.findUnique({
-      where: { walletAddress },
-    });
-
-    if (existing) {
-      return NextResponse.json({ error: 'Partner already registered with this wallet' }, { status: 400 });
-    }
-
-    // Auto-approve as ADMIN if it matches env var
-    const isAdmin = process.env.ADMIN_WALLET_ADDRESS && walletAddress === process.env.ADMIN_WALLET_ADDRESS;
-    const finalRole = isAdmin ? 'ADMIN' : role;
-    const status = isAdmin || finalRole === 'CONSUMER' ? 'APPROVED' : 'PENDING';
-
-    const partner = await prisma.partner.create({
-      data: {
-        walletAddress,
-        name: isAdmin ? 'Platform Administrator' : name,
-        role: finalRole as any,
-        status,
-        email: email || null,
-      },
-    });
+    // Mock DB response for Factora UI demonstration
+    const partner = {
+      walletAddress,
+      name,
+      role: role,
+      status: 'APPROVED',
+      email: email || null,
+    };
 
     return NextResponse.json({ partner, message: 'Registration request submitted successfully.' });
   } catch (error: any) {

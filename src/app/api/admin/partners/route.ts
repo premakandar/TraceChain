@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { mockDb } from '@/lib/mockDb';
 
 // GET /api/admin/partners - List all partners (with optional status filter)
 export async function GET(request: NextRequest) {
@@ -9,10 +9,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || undefined;
 
-    const partners = await prisma.partner.findMany({
-      where: status ? { status: status as any } : {},
-      orderBy: { createdAt: 'desc' },
-    });
+    let partners = mockDb.getPartners();
+    if (status) {
+      partners = partners.filter(p => p.status === status);
+    }
 
     return NextResponse.json({ partners });
   } catch (error: any) {
