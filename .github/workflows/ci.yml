@@ -1,0 +1,70 @@
+name: TraceChain CI/CD
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  rust-contracts:
+    name: Build & Test Soroban Contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Cargo Dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            contracts/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: Run Cargo Tests
+        run: |
+          cd contracts
+          cargo test
+
+  frontend-nextjs:
+    name: Build & Test Next.js App
+    runs-on: ubuntu-latest
+    needs: rust-contracts
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Node Dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run TypeScript Typecheck
+        run: npx tsc --noEmit
+
+      - name: Run Vitest Unit Tests
+        run: npm run test
+
+      - name: Run Production Build
+        run: npm run build
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/tracechain"
+          NEXT_PUBLIC_PARTNER_REGISTRY_ID: "CBIT32REGISTRYPARTNERXXXYYYZZZ1234567890"
+          NEXT_PUBLIC_PRODUCT_REGISTRY_ID: "CBIT32REGISTRYPRODUCTXXXYYYZZZ1234567890"
+          NEXT_PUBLIC_OWNERSHIP_ID: "CBIT32OWNERSHIPXXXYYYZZZ1234567890"
+          NEXT_PUBLIC_SHIPMENT_ID: "CBIT32SHIPMENTXXXYYYZZZ1234567890"

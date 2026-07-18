@@ -1,0 +1,130 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  MANUFACTURER
+  DISTRIBUTOR
+  LOGISTICS
+  RETAILER
+  CONSUMER
+}
+
+enum PartnerStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ProductStatus {
+  REGISTERED
+  IN_TRANSIT
+  DELIVERED
+  SOLD
+}
+
+enum ShipmentStatus {
+  CREATED
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
+model Partner {
+  walletAddress String        @id
+  name          String
+  role          Role
+  status        PartnerStatus @default(PENDING)
+  email         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  productsCreated Product[] @relation("CreatedProducts")
+  productsOwned   Product[] @relation("OwnedProducts")
+  shipments       Shipment[] @relation("CarrierShipments")
+  inventory       Inventory[]
+}
+
+model Product {
+  id                  String        @id
+  name                String
+  sku                 String
+  description         String?
+  metadata            Json?         // Custom attributes
+  manufacturerAddress String
+  manufacturer        Partner       @relation("CreatedProducts", fields: [manufacturerAddress], references: [walletAddress])
+  currentOwnerAddress String
+  currentOwner        Partner       @relation("OwnedProducts", fields: [currentOwnerAddress], references: [walletAddress])
+  status              ProductStatus @default(REGISTERED)
+  createdAt           DateTime      @default(now())
+  txHash              String
+
+  shipments        Shipment[]
+  ownershipHistory OwnershipHistory[]
+  inventory        Inventory[]
+}
+
+model Shipment {
+  id              String         @id
+  productId       String
+  product         Product        @relation(fields: [productId], references: [id])
+  carrierAddress  String
+  carrier         Partner        @relation("CarrierShipments", fields: [carrierAddress], references: [walletAddress])
+  senderAddress   String
+  receiverAddress String
+  source          String
+  destination     String
+  status          ShipmentStatus @default(CREATED)
+  txHash          String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  updates ShipmentUpdate[]
+}
+
+model ShipmentUpdate {
+  id          String   @id @default(uuid())
+  shipmentId  String
+  shipment    Shipment @relation(fields: [shipmentId], references: [id])
+  status      ShipmentStatus
+  location    String
+  description String?
+  txHash      String
+  timestamp   DateTime @default(now())
+}
+
+model OwnershipHistory {
+  id          String   @id @default(uuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  fromAddress String
+  toAddress   String
+  txHash      String
+  timestamp   DateTime @default(now())
+}
+
+model Inventory {
+  id            String   @id @default(uuid())
+  walletAddress String
+  partner       Partner  @relation(fields: [walletAddress], references: [walletAddress])
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id])
+  quantity      Int      @default(1)
+  updatedAt     DateTime @updatedAt
+
+  @@unique([walletAddress, productId])
+}
+
+model Notification {
+  id            String   @id @default(uuid())
+  walletAddress String
+  title         String
+  message       String
+  read          Boolean  @default(false)
+  createdAt     DateTime @default(now())
+}
