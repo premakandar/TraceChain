@@ -1,7 +1,7 @@
 'use strict';
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { StellarWalletsKit, Networks } from '@creit-tech/stellar-wallets-kit';
 import { defaultModules } from '@creit-tech/stellar-wallets-kit/modules/utils';
 
@@ -54,18 +54,21 @@ const getWalletKit = () => {
 };
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const [publicKey, setPublicKey] = useState<string | null>(null);
-  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [publicKey, setPublicKey] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('wallet_address');
+  });
+  const [isConnected, setIsConnected] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return !!localStorage.getItem('wallet_address');
+  });
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [activeRole, setActiveRole] = useState<Role>('CONSUMER');
   const [balance, setBalance] = useState<string>('0.00');
 
-  const refreshBalance = async () => {
-    if (!publicKey) {
-      setBalance('0.00');
-      return;
-    }
+  const refreshBalance = useCallback(async () => {
+    if (!publicKey) return;
     try {
       const res = await fetch(`https://horizon-testnet.stellar.org/accounts/${publicKey}`);
       if (!res.ok) throw new Error('Account not found');
@@ -82,11 +85,34 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       console.warn('Horizon fetch failed, using fallback balance:', e);
       setBalance('0.00');
     }
-  };
+  }, [publicKey]);
 
   // Fetch balance on key change
   useEffect(() => {
-    refreshBalance();
+    if (!publicKey) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`https://horizon-testnet.stellar.org/accounts/${publicKey}`);
+        if (cancelled) return;
+        if (!res.ok) throw new Error('Account not found');
+        const data = await res.json();
+        if (cancelled) return;
+        const nativeBalance = data.balances.find((b: any) => b.asset_type === 'native');
+        if (nativeBalance) {
+          const formatted = parseFloat(nativeBalance.balance).toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          });
+          setBalance(formatted);
+        }
+      } catch (e) {
+        if (cancelled) return;
+        console.warn('Horizon fetch failed, using fallback balance:', e);
+        setBalance('0.00');
+      }
+    })();
+    return () => { cancelled = true; };
   }, [publicKey]);
 
   // partnerProfile is always active for any connected wallet — roles are for UI simulation only
@@ -97,15 +123,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     status: 'APPROVED',
     email: null,
   } : null;
-
-  // Auto-connect if wallet details are saved in localStorage
-  useEffect(() => {
-    const savedAddress = localStorage.getItem('wallet_address');
-    if (savedAddress) {
-      setPublicKey(savedAddress);
-      setIsConnected(true);
-    }
-  }, []);
 
   const refreshProfile = async (_address: string) => {
     // No-op: profile is derived from wallet connection + selected role
@@ -149,6 +166,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
     setPublicKey(null);
     setIsConnected(false);
+    setBalance('0.00');
     localStorage.removeItem('wallet_address');
   };
 

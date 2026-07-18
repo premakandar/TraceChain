@@ -81,6 +81,27 @@ function parseToastMessage(message: string): string {
   return message;
 }
 
+function getStepMessage(step: TxStep): string {
+  switch (step) {
+    case 'preparing':
+      return 'Preparing Transaction...';
+    case 'signing':
+      return 'Wallet Signature Required';
+    case 'submitted':
+      return 'Transaction Submitted';
+    case 'confirming':
+      return 'Waiting for Confirmation';
+    case 'confirmed':
+      return 'Transaction Confirmed!';
+    case 'failed':
+      return 'Transaction Failed';
+    case 'cancelled':
+      return 'Transaction Cancelled';
+    default:
+      return '';
+  }
+}
+
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -141,27 +162,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       dismiss: () => dismissToast(id),
     };
   }, [dismissToast]);
-
-  const getStepMessage = (step: TxStep): string => {
-    switch (step) {
-      case 'preparing':
-        return 'Preparing Transaction...';
-      case 'signing':
-        return 'Wallet Signature Required';
-      case 'submitted':
-        return 'Transaction Submitted';
-      case 'confirming':
-        return 'Waiting for Confirmation';
-      case 'confirmed':
-        return 'Transaction Confirmed!';
-      case 'failed':
-        return 'Transaction Failed';
-      case 'cancelled':
-        return 'Transaction Cancelled';
-      default:
-        return '';
-    }
-  };
 
   return (
     <ToastContext.Provider value={{ toasts, showToast, dismissToast, showTxToast }}>
