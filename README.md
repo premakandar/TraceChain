@@ -9,18 +9,18 @@
 ## Screenshots
 
 ### Landing Page
-![Landing Page](/landing.png)
+![Landing Page](./public/landing.png)
 
 ### Dashboard Analytics
-![Dashboard Analytics](/dashboard.png)
+![Dashboard Analytics](./public/dashboard.png)
 
 ### Admin Console
-![Admin Console](/admin.png)
+![Admin Console](./public/admin.png)
 
 ### Smart Contract Execution & Verification
 <div style="display: flex; gap: 10px;">
-  <img src="/PartnerRegistry-smart-contract.png" alt="Partner Registry Smart Contract" width="49%" />
-  <img src="/ProductRegistry-smart-contract.png" alt="Product Registry Smart Contract" width="49%" />
+  <img src="./public/PartnerRegistry-smart-contract.png" alt="Partner Registry Smart Contract" width="49%" />
+  <img src="./public/ProductRegistry-smart-contract.png" alt="Product Registry Smart Contract" width="49%" />
 </div>
 
 ---
