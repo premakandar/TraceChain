@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Shipment is already delivered and closed' }, { status: 400 });
     }
 
-    const updatedShipment = await prisma.$transaction(async (tx) => {
+    const updatedShipment = await prisma.$transaction(async (tx: any) => {
       // 1. Create a checkpoint update record
       await tx.shipmentUpdate.create({
         data: {

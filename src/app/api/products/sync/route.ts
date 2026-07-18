@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Use transaction to atomically create product, ownership history, and inventory
-    const product = await prisma.$transaction(async (tx) => {
+    const product = await prisma.$transaction(async (tx: any) => {
       // Create product
       const prod = await tx.product.create({
         data: {

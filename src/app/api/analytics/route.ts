@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const productsByStatus = statusGroups.map((group) => ({
+    const productsByStatus = statusGroups.map((group: any) => ({
       status: group.status,
       count: group._count.id,
     }));
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const partnersByRole = partnerGroups.map((group) => ({
+    const partnersByRole = partnerGroups.map((group: any) => ({
       role: group.role,
       status: group.status,
       count: group._count.walletAddress,
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
 
     // Populate manufacturer names
     const topManufacturers = await Promise.all(
-      manufacturers.map(async (m) => {
+      manufacturers.map(async (m: any) => {
         const partner = await prisma.partner.findUnique({
           where: { walletAddress: m.manufacturerAddress },
           select: { name: true },

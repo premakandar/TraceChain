@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Perform atomic state updates
-    const updatedProduct = await prisma.$transaction(async (tx) => {
+    const updatedProduct = await prisma.$transaction(async (tx: any) => {
       // 1. Update product owner
       const updated = await tx.product.update({
         where: { id: productId },

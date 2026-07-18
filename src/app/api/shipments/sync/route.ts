@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Perform atomic transaction
-    const shipment = await prisma.$transaction(async (tx) => {
+    const shipment = await prisma.$transaction(async (tx: any) => {
       // 1. Create shipment
       const ship = await tx.shipment.create({
         data: {
