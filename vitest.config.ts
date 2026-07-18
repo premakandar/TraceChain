@@ -12,7 +12,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@creit-tech/stellar-wallets-kit/sdk/modules/utils.js': path.resolve(__dirname, './src/__tests__/mockUtils.ts'),
+      '@creit-tech/stellar-wallets-kit/modules/utils': path.resolve(__dirname, './src/__tests__/mockUtils.ts'),
     },
   },
 });

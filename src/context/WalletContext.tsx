@@ -3,8 +3,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { StellarWalletsKit, Networks } from '@creit-tech/stellar-wallets-kit';
-// @ts-ignore
-import { defaultModules } from '@creit-tech/stellar-wallets-kit/sdk/modules/utils.js';
+import { defaultModules } from '@creit-tech/stellar-wallets-kit/modules/utils';
 
 export type Role = 'ADMIN' | 'MANUFACTURER' | 'DISTRIBUTOR' | 'LOGISTICS' | 'RETAILER' | 'CONSUMER';
 export type PartnerStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
